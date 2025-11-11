@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <!-- Configuración básica del documento -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Productos</title>
+
+    <!-- Enlaces a Bootstrap y Bootstrap Icons desde CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet" />
+
+    <!-- Enlace al archivo CSS personalizado -->
+    <link rel="stylesheet" href="fisyle.css">
+
+    <!-- Configuración de Progressive Web App (PWA) -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#0d6efd" /> <!-- Color principal del navegador -->
+    <link rel="apple-touch-icon" href="icons/icon-192.png" /> <!-- Ícono para dispositivos Apple -->
+    <meta name="apple-mobile-web-app-capable" content="yes" /> <!-- Permite modo app en iOS -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!-- Estilo del botón flotante de instalación PWA -->
+    <style>
+      /* Botón flotante visible solo cuando la app se puede instalar */
+      #btnInstall {
+        position: fixed; right: 16px; bottom: 16px;
+        padding: 12px 16px; border: 0; border-radius: 10px;
+        background: #0d6efd; color: white; font-size: 14px; cursor: pointer;
+        box-shadow: 0 6px 18px rgba(0,0,0,.2); z-index: 9999;
+      }
+      /* Oculta el botón cuando tiene el atributo hidden */
+      #btnInstall[hidden] { display: none; }
+    </style>
+</head>
+
+<body>
+    <!-- Encabezado principal -->
+    <div class="header-bar">
+        <h1 class="display-6 mb-0">Gestión de Productos</h1>
+    </div>
+
+    <!-- Contenedor principal con botones de acción -->
+    <div class="container py-5 text-center">
+        <div class="buttons-container">
+            <!-- Botón para abrir el modal y registrar producto -->
+            <button type="button" class="btn btn-custom btn-lg" data-bs-toggle="modal" data-bs-target="#productoModal">
+                Registrar nuevo producto
+            </button>
+            <!-- Botón para limpiar todos los datos del LocalStorage -->
+            <button id="clearAll" class="btn btn-custom btn-lg ms-2">
+                Limpiar todo (LocalStorage)
+            </button>
+        </div>
+    </div>
+
+    <!-- Contenedor donde se mostrarán los productos -->
+    <div id="productsContainer" class="row mt-5"></div>
+
+    <!-- === MODAL para registrar producto === -->
+    <div class="modal fade" id="productoModal" tabindex="-1" aria-labelledby="productoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <!-- Encabezado del modal -->
+                <div class="modal-header" style="background-color:#FFB6C1; color:white;">
+                    <h5 class="modal-title" id="productoModalLabel">Registrar nuevo producto</h5>
+                    <!-- Botón para cerrar el modal -->
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <!-- Cuerpo del modal con el formulario -->
+                <div class="modal-body p-4">
+                    <form id="productoForm">
+                        <div class="row g-3">
+                            <!-- Campo Producto -->
+                            <div class="col-md-6">
+                                <label for="producto" class="form-label">Producto</label>
+                                <input type="text" class="form-control" id="producto" required />
+                            </div>
+
+                            <!-- Campo Clave -->
+                            <div class="col-md-6">
+                                <label for="clave" class="form-label">Clave</label>
+                                <input type="text" class="form-control" id="clave" required />
+                            </div>
+
+                            <!-- Campo Nombre -->
+                            <div class="col-md-6">
+                                <label for="nombre" class="form-label">Nombre</label>
+                                <input type="text" class="form-control" id="nombre" required />
+                            </div>
+
+                            <!-- Campo Precio -->
+                            <div class="col-md-6">
+                                <label for="precio" class="form-label">Precio</label>
+                                <input type="number" class="form-control" id="precio" placeholder="0.00" step="0.01" required />
+                            </div>
+
+                            <!-- Campo Stock -->
+                            <div class="col-md-6">
+                                <label for="stock" class="form-label">Stock</label>
+                                <input type="number" class="form-control" id="stock" required />
+                            </div>
+
+                            <!-- Campo Descripción -->
+                            <div class="col-12">
+                                <label for="descripcion" class="form-label">Descripción</label>
+                                <textarea class="form-control" id="descripcion" rows="3"></textarea>
+                            </div>
+
+                            <!-- Campo para subir imágenes -->
+                            <div class="col-12">
+                                <label for="imagenes" class="form-label">Imágenes del producto</label>
+                                <input type="file" id="imagenes" class="form-control" accept="image/*" multiple />
+                                <div class="form-text">
+                                    Se guardan temporalmente como Data URLs en el LocalStorage (límite 5–10 MB).
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Pie del modal con botones -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="productoForm" class="btn btn-custom">Guardar producto</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts de Bootstrap -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Script principal de la app -->
+    <script>
+        // Inicializa el modal de Bootstrap
+        const modal = new bootstrap.Modal(document.getElementById('productoModal'));
+
+        // Arreglo donde se guardan los productos
+        let productos = [];
+
+        // Clave para el LocalStorage
+        const LS_KEY = 'productos';
+
+        // Guarda los productos en el LocalStorage
+        function saveToLS() {
+            localStorage.setItem(LS_KEY, JSON.stringify(productos));
+        }
+
+        // Carga los productos desde el LocalStorage
+        function loadFromLS() {
+            try {
+                const raw = localStorage.getItem(LS_KEY);
+                productos = raw ? JSON.parse(raw) : [];
+            } catch (e) {
+                console.warn('LocalStorage corrupto, se reinicia.', e);
+                productos = [];
+                localStorage.removeItem(LS_KEY);
+            }
+        }
+
+        // Convierte archivos de imagen en DataURLs para poder almacenarlos
+        function readFilesAsDataURLs(fileList) {
+            const files = Array.from(fileList || []);
+            const readers = files.map(file => new Promise((resolve, reject) => {
+                const fr = new FileReader();
+                fr.onload = () => resolve({ name: file.name, type: file.type, dataURL: fr.result });
+                fr.onerror = reject;
+                fr.readAsDataURL(file);
+            }));
+            return Promise.all(readers);
+        }
+
+        // Renderiza los productos en tarjetas (cards)
+        function renderProducts() {
+            const container = document.getElementById('productsContainer');
+            container.innerHTML = "";
+
+            productos.forEach((producto, idx) => {
+                const col = document.createElement('div');
+                col.className = 'col-md-6 col-lg-4 mb-4';
+
+                // Muestra hasta 3 miniaturas de imágenes
+                const thumbs = (producto.imagenes || []).slice(0, 3)
+                    .map(img => `<img class="thumb w-100" src="${img.dataURL}" alt="${producto.nombre}" />`)
+                    .join('');
+
+                // Indica cuántas imágenes adicionales hay
+                const extraCount = (producto.imagenes?.length || 0) - 3;
+                const extraBadge = extraCount > 0 ? `<span class="badge bg-secondary">+${extraCount} más</span>` : '';
+
+                // Estructura visual de la tarjeta del producto
+                col.innerHTML = `
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header d-flex align-items-center justify-content-between text-white">
+                            <h5 class="card-title mb-0">${producto.nombre}</h5>
+                            <button class="btn btn-sm btn-light" data-action="delete" data-index="${idx}">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Producto:</strong> ${producto.producto}</p>
+                            <p><strong>Clave:</strong> ${producto.clave}</p>
+                            <p><strong>Precio:</strong> $${Number(producto.precio).toFixed(2)}</p>
+                            <p><strong>Stock:</strong> ${producto.stock}</p>
+                            <p><strong>Descripción:</strong> ${producto.descripcion || 'Sin descripción'}</p>
+                            ${(producto.imagenes && producto.imagenes.length)
+                                ? `<div class="thumbs-grid mt-2">${thumbs}</div>${extraBadge ? `<div class="mt-2">${extraBadge}</div>` : ''}`
+                                : '<div class="text-muted"><em>Sin imágenes</em></div>'}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(col);
+            });
+
+            // Agrega funcionalidad al botón de eliminar producto
+            container.querySelectorAll('[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const i = Number(e.currentTarget.getAttribute('data-index'));
+                    if (confirm(`¿Seguro que deseas eliminar "${productos[i].nombre}"?`)) {
+                        productos.splice(i, 1);
+                        saveToLS();
+                        renderProducts();
+                    }
+                });
+            });
+        }
+
+        // Manejo del envío del formulario
+        document.getElementById('productoForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const imagenesInput = document.getElementById('imagenes');
+            let imagenes = [];
+
+            // Lee las imágenes seleccionadas
+            try {
+                imagenes = await readFilesAsDataURLs(imagenesInput.files);
+            } catch (err) {
+                console.error('Error leyendo imágenes', err);
+            }
+
+            // Crea un objeto producto con todos los datos del formulario
+            const producto = {
+                id: crypto.randomUUID(), // ID único
+                producto: document.getElementById('producto').value.trim(),
+                clave: document.getElementById('clave').value.trim(),
+                nombre: document.getElementById('nombre').value.trim(),
+                precio: parseFloat(document.getElementById('precio').value),
+                stock: parseInt(document.getElementById('stock').value),
+                descripcion: document.getElementById('descripcion').value.trim(),
+                imagenes,
+            };
+
+            // Agrega el producto al arreglo y actualiza vista y almacenamiento
+            productos.push(producto);
+            saveToLS();
+            renderProducts();
+
+            // Limpia el formulario y cierra el modal
+            this.reset();
+            modal.hide();
+        });
+
+        // Al cargar la página, se cargan y muestran los productos guardados
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromLS();
+            renderProducts();
+
+            // Limpia todos los productos al presionar el botón
+            document.getElementById('clearAll').addEventListener('click', () => {
+                if (confirm('¿Seguro que deseas borrar todos los productos?')) {
+                    productos = [];
+                    saveToLS();
+                    renderProducts();
+                }
+            });
+        });
+    </script>
+
+    <!-- Botón flotante para instalar la app como PWA -->
+    <button id="btnInstall" hidden>Instalar app</button>
+      <script>
+    // Registrar el Service Worker 
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW registrado:', reg.scope))
+          .catch(err => console.warn('SW fallo:', err));
+      });
+    }
+
+    // Evento que detecta si se puede instalar la PWA
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('btnInstall');
+      if (btn) btn.hidden = false; // Muestra el botón de instalación
+    });
+
+    // Al hacer clic en el botón de instalar
+    document.addEventListener('click', async (e) => {
+      if (e.target && e.target.id === 'btnInstall') {
+        if (!deferredPrompt) return;
+        e.target.disabled = true;
+        deferredPrompt.prompt(); // Muestra el cuadro de instalación
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('Instalación:', outcome);
+        deferredPrompt = null;
+        e.target.hidden = true;
+      }
+    });
+
+    // Evento cuando la app ya fue instalada
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA instalada');
+      const btn = document.getElementById('btnInstall');
+      if (btn) btn.hidden = true;
+    });
+    </script>
+</body>
+</html>
